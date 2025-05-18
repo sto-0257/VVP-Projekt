@@ -11,6 +11,7 @@ Repozitář obsahuje:
 Python skript slouží k generování, načítání, řešení a vizualizaci bludišť reprezentovaných jako binární matice.
 
 Funkcionality
+    
     maze_from_csv(path)
     Načte bludiště z CSV souboru a převede ho na binární matici (False = průchozí, True = zeď).
 
