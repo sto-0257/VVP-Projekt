@@ -2,13 +2,15 @@ import numpy as np
 from PIL import Image
 import random
 import csv
+from typing import List, Tuple, Optional, Union
+from pathlib import Path
 
-def maze_from_csv(path): # importuje jego bludiště jako bool
+def maze_from_csv(path: Union[str, Path]) -> np.ndarray:
     raw_matrix = np.loadtxt(path, delimiter=",", dtype=int)
     maze = raw_matrix.astype(bool)
     return maze
 
-def adj_matrix(maze): # tvoří incidenční matici (kiero obsahuje info, kiere dwa okiynka, kiere ze sebóm sąsiadujóm sóm průchozí)
+def adj_matrix(maze: np.ndarray) -> np.ndarray:
     height, width = maze.shape
     total_cells = height * width
 
@@ -26,21 +28,29 @@ def adj_matrix(maze): # tvoří incidenční matici (kiero obsahuje info, kiere 
                             adjacency[current][neighbor] = 1
     return adjacency
 
-def shortest_path(adjacency, start, end):
-    queue = [(start, [start])]
+def shortest_path(adjacency: np.ndarray, start: int, end: int) -> Optional[List[int]]:
+    from collections import deque
+
+    queue = deque()
+    queue.append((start, [start]))
     visited = set()
 
     while queue:
-        current, path = queue.pop(0)
+        current, path = queue.popleft()
         if current == end:
             return path
+        if current in visited:
+            continue
         visited.add(current)
-        for neighbor in range(len(adjacency)):
-            if adjacency[current][neighbor] == 1 and neighbor not in visited:
+
+        neighbors = np.nonzero(adjacency[current])[0]
+        for neighbor in neighbors:
+            if neighbor not in visited:
                 queue.append((neighbor, path + [neighbor]))
+
     return None
 
-def maze_with_path(maze, path):
+def maze_with_path(maze: np.ndarray, path: List[int]) -> None:
     height, width = maze.shape
     img = Image.new("RGB", (width, height))
 
@@ -57,56 +67,74 @@ def maze_with_path(maze, path):
     img = img.resize((width*20, height*20), Image.NEAREST)
     img.save("solved.png")
 
-def generate_maze(n, base="empty", density= 0.7):
+def generate_maze(n: int, base: str, density: float) -> np.ndarray:
     maze = create_template(n, base)
+    height, width = maze.shape
 
-    cells = list((y,x) for y in range(n) for x in range(n)
-                 if (y,x) not in [(0,0), (n-1, n-1)])
+    adj = adj_matrix(maze)
+
+    cells = [(y,x) for y in range(n) for x in range(n) if (y,x) not in [(0,0), (n-1, n-1)]]
     random.shuffle(cells)
 
-    for y,x in cells:
+    for y, x in cells:
         if random.random() > density:
             continue
 
-        maze[y][x] = True
-        adj = adj_matrix(maze)
-        path = shortest_path(adj, 0, n*n - 1)
+        if maze[y][x] == False:
+            maze[y][x] = True
+            index = y * width + x
 
-        if path is None:
-            maze[y][x] = False
-        
+            for dx, dy in [(-1,0),(1,0),(0,-1),(0,1)]:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < width and 0 <= ny < height:
+                    neighbor = ny * width + nx
+                    adj[index][neighbor] = 0
+                    adj[neighbor][index] = 0
+
+            path = shortest_path(adj, 0, n*n - 1)
+            if path is None:
+                maze[y][x] = False
+
+                for dx, dy in [(-1,0),(1,0),(0,-1),(0,1)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < width and 0 <= ny < height:
+                        neighbor = ny * width + nx
+                        if maze[ny][nx] == False:
+                            adj[index][neighbor] = 1
+                            adj[neighbor][index] = 1
+
     return maze
 
-def create_template(n, base="empty"):
+def create_template(n: int, base: str) -> np.ndarray:
     maze = np.zeros((n,n), dtype=bool)
 
     if base == "hslalom":
-        for y in range(1, n-1, 2):
+        for y in range(1, n-1, 5):
             for x in range(n):
                 if x != y:
                     maze[y][x] = True
 
     if base == "vslalom":
-        for x in range(1, n-1, 2):
+        for x in range(1, n-1, 4):
             for y in range(n):
                 if (y-2) % n != x:
                     maze[y][x] = True
         
     if base == "sslalom":
-        for y in range(1, n-1, 2):
+        for y in range(1, n-1, 8):
             for x in range(n):
                 if (y+10) % n != x:
                     maze[y][x] = True
 
     if base == "snake":
-        for y in range(1, n-1, 2):
+        for y in range(1, n-1, 5):
             for x in range(n):
                 if y % n != (x*10) % n:
                     maze[y][x] = True
 
     return maze 
 
-def solve_and_save(maze):
+def solve_and_save(maze: np.ndarray) -> None:
     n = maze.shape[0]
     adj = adj_matrix(maze)
     path = shortest_path(adj, 0, n * n - 1)
@@ -118,5 +146,5 @@ def solve_and_save(maze):
         maze_with_path(maze, path)
 
 maze = maze_from_csv("data/maze_3.csv")
-maze1 = create_template(41, base="empty")
+maze1 = generate_maze(30, base="sslalom", density=0.3)
 solve_and_save(maze1)
