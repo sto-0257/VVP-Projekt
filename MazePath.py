@@ -6,11 +6,29 @@ from typing import List, Tuple, Optional, Union
 from pathlib import Path
 
 def maze_from_csv(path: Union[str, Path]) -> np.ndarray:
+    """
+    Načte bludiště ze souboru CSV a převede ho na binární matici.
+
+    Args:
+        path (Union[str, Path]): Cesta k CSV souboru.
+
+    Returns:
+        np.ndarray: Dvourozměrné pole typu bool, kde False označuje průchozí buňku a True zeď.
+    """
     raw_matrix = np.loadtxt(path, delimiter=",", dtype=int)
     maze = raw_matrix.astype(bool)
     return maze
 
 def adj_matrix(maze: np.ndarray) -> np.ndarray:
+    """
+    Vytvoří sousednostní matici pro zadané bludiště.
+
+    Args:
+        maze (np.ndarray): Dvourozměrné pole s hodnotami False (průchozí) a True (zdi).
+
+    Returns:
+        np.ndarray: Čtvercová matice sousednosti, kde 1 znamená spojení mezi průchozími sousedy.
+    """
     height, width = maze.shape
     total_cells = height * width
 
@@ -29,6 +47,17 @@ def adj_matrix(maze: np.ndarray) -> np.ndarray:
     return adjacency
 
 def shortest_path(adjacency: np.ndarray, start: int, end: int) -> Optional[List[int]]:
+    """
+    Najde nejkratší cestu mezi dvěma uzly v grafu pomocí BFS.
+
+    Args:
+        adjacency (np.ndarray): Matice sousednosti grafu.
+        start (int): Index počátečního uzlu.
+        end (int): Index cílového uzlu.
+
+    Returns:
+        Optional[List[int]]: Seznam indexů uzlů tvořících cestu, nebo None pokud cesta neexistuje.
+    """
     from collections import deque
 
     queue = deque()
@@ -51,6 +80,13 @@ def shortest_path(adjacency: np.ndarray, start: int, end: int) -> Optional[List[
     return None
 
 def maze_with_path(maze: np.ndarray, path: List[int]) -> None:
+    """
+    Vykreslí bludiště a zvýrazní nalezenou cestu.
+
+    Args:
+        maze (np.ndarray): Dvourozměrné pole bludiště.
+        path (List[int]): Seznam indexů průchozích buněk tvořících cestu.
+    """
     height, width = maze.shape
     img = Image.new("RGB", (width, height))
 
@@ -65,9 +101,20 @@ def maze_with_path(maze: np.ndarray, path: List[int]) -> None:
         img.putpixel((x,y), (255,0,0))
 
     img = img.resize((width*20, height*20), Image.NEAREST)
-    img.save("solved.png")
+    img.show()
 
 def generate_maze(n: int, base: str, density: float) -> np.ndarray:
+    """
+    Generuje bludiště dané velikosti a základního tvaru s náhodným přidáváním zdí.
+
+    Args:
+        n (int): Rozměr bludiště (n x n).
+        base (str): Typ šablony ("hslalom", "vslalom", "sslalom", "snake").
+        density (float): Hustota přidávaných překážek (0 až 1).
+
+    Returns:
+        np.ndarray: Vygenerovaná binární matice bludiště.
+    """
     maze = create_template(n, base)
     height, width = maze.shape
 
@@ -106,6 +153,16 @@ def generate_maze(n: int, base: str, density: float) -> np.ndarray:
     return maze
 
 def create_template(n: int, base: str) -> np.ndarray:
+    """
+    Vytváří šablonu bludiště na základě zvoleného vzoru.
+
+    Args:
+        n (int): Rozměr bludiště.
+        base (str): Typ šablony ("hslalom", "vslalom", "sslalom", "snake").
+
+    Returns:
+        np.ndarray: Bludiště jako dvourozměrné pole bool hodnot.
+    """
     maze = np.zeros((n,n), dtype=bool)
 
     if base == "hslalom":
@@ -134,7 +191,13 @@ def create_template(n: int, base: str) -> np.ndarray:
 
     return maze 
 
-def solve_and_save(maze: np.ndarray) -> None:
+def solve_and_show(maze: np.ndarray) -> None:
+    """
+    Vyřeší bludiště (pokud to jde) a zobrazí jej s cestou.
+
+    Args:
+        maze (np.ndarray): Dvourozměrná binární matice bludiště.
+    """
     n = maze.shape[0]
     adj = adj_matrix(maze)
     path = shortest_path(adj, 0, n * n - 1)
@@ -146,5 +209,5 @@ def solve_and_save(maze: np.ndarray) -> None:
         maze_with_path(maze, path)
 
 maze = maze_from_csv("data/maze_3.csv")
-maze1 = generate_maze(30, base="sslalom", density=0.3)
-solve_and_save(maze1)
+maze1 = generate_maze(30, base="slalom", density=0.2)
+solve_and_show(maze1)
